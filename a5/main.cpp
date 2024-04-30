@@ -24,9 +24,14 @@
 #define CLOCKS_PER_SEC 100000
 #endif
 
-enum class TexType:int{Color=0, Normal=1};
+enum class TexType : int
+{
+    Color = 0,
+    Normal = 1
+};
 
-class ShaderDriver : public OpenGLViewer {
+class ShaderDriver : public OpenGLViewer
+{
     std::vector<OpenGLTriangleMesh *> mesh_object_array;
     clock_t startTime;
 
@@ -59,7 +64,7 @@ public:
             Add_Textture_For_Mesh_Object(sphere, "earth_color.png", TexType::Color);
             Add_Textture_For_Mesh_Object(sphere, "earth_normal.png", TexType::Normal);
         }
-        
+
         //// initialize bunny
         {
             //// initialize mesh
@@ -88,45 +93,128 @@ public:
 
     void Create_Old_Object_Scene()
     {
-        Create_Background(OpenGLColor(0.1f, 0.1f, 0.1f, 1.f), OpenGLColor(0.1f, 0.1f, .3f, 1.f));   //// add background
+        Create_Background(OpenGLColor(0.1f, 0.1f, 0.1f, 1.f), OpenGLColor(0.1f, 0.1f, .3f, 1.f)); //// add background
 
-        //// Step 5: Add your customized mesh objects and specify their transform, material, and texture properties by mimicking Create_Bunny_Scene() 
+        //// Step 5: Add your customized mesh objects and specify their transform, material, and texture properties by mimicking Create_Bunny_Scene()
         /* Your implementation starts */
 
         //// initialize mesh
-            auto chair = Add_Obj_Mesh_Object("smoothGrass.obj");
-            chair->name = "chair"; //// Must set name for the object
+        auto chair = Add_Obj_Mesh_Object("smoothGrass.obj");
+        chair->name = "chair"; //// Must set name for the object
 
-            //// initialize transform
-            Matrix4f t;
-            t << 1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1;
-            chair->Set_Model_Matrix(t);
+        //// initialize transform
+        Matrix4f t;
+        t << 1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+        chair->Set_Model_Matrix(t);
 
-            //// initialize material
-            chair->Set_Ka(Vector3f(0.2, 0.2, 0.2));
-            chair->Set_Kd(Vector3f(0.6, 0.6, 0.6));
-            chair->Set_Ks(Vector3f(0.2, 0.2, 0.2));
-            chair->Set_Shininess(256.);
+        //// initialize material
+        chair->Set_Ka(Vector3f(0.2, 0.2, 0.2));
+        chair->Set_Kd(Vector3f(0.6, 0.6, 0.6));
+        chair->Set_Ks(Vector3f(0.2, 0.2, 0.2));
+        chair->Set_Shininess(256.);
 
-            //// initialize texture
-            Add_Textture_For_Mesh_Object(chair, "grass_texture_1.jpg", TexType::Color);
-            Add_Textture_For_Mesh_Object(chair, "bunny_normal.jpg", TexType::Normal);
+        //// initialize texture
+        Add_Textture_For_Mesh_Object(chair, "grass_texture_1.jpg", TexType::Color);
+        Add_Textture_For_Mesh_Object(chair, "bunny_normal.jpg", TexType::Normal);
+
+        makeTree(vec3(0.0, 0.0, 0.0), 1., 1.0);
 
         /* Your implementation ends */
     }
 
-    virtual void Initialize_Data() 
+    void makeLeaf(vec3 origin, float scale, Matrix4f t)
     {
-        //Create_Bunny_Scene();           //// TODO: comment out this line for your customized scene
-        Create_Old_Object_Scene();   //// TODO: uncomment this line for your customized scene
+        auto tree = Add_Obj_Mesh_Object("triangle.obj");
+        tree->name = "tree"; //// Must set name for the object
+        float angle = 3.1415927f * .4f;
+        Matrix4f r;
+
+        r << 1., 0., 0., 0.,
+            0., cos(angle), -sin(angle), 0.,
+            0., sin(angle), cos(angle), 0.,
+            0., 0., 0., 1.;
+        tree->Set_Model_Matrix(t * r);
+
+        //// initialize material
+        tree->Set_Ka(Vector3f(0.2, 0.2, 0.2));
+        tree->Set_Kd(Vector3f(0.6, 0.6, 0.6));
+        tree->Set_Ks(Vector3f(0.2, 0.2, 0.2));
+        tree->Set_Shininess(256.);
+
+        //// initialize texture
+        Add_Textture_For_Mesh_Object(tree, "textures/AmericanElmLeaf.jpg", TexType::Color);
+        Add_Textture_For_Mesh_Object(tree, "normal_maps/AmericanElmLeaf_Normal.jpg", TexType::Normal);
+    }
+
+    void makeBranch(vec3 origin, float scale, Matrix4f t)
+    {
+        auto tree = Add_Obj_Mesh_Object("branch.obj");
+        tree->name = "tree"; //// Must set name for the object
+        Matrix4f s;
+        s << 0.2f, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+
+        tree->Set_Model_Matrix(t * s);
+
+        //// initialize material
+        tree->Set_Ka(Vector3f(0.2, 0.2, 0.2));
+        tree->Set_Kd(Vector3f(0.6, 0.6, 0.6));
+        tree->Set_Ks(Vector3f(0.2, 0.2, 0.2));
+        tree->Set_Shininess(256.);
+
+        //// initialize texture
+        Add_Textture_For_Mesh_Object(tree, "textures/AmericanElmLeaf.jpg", TexType::Color);
+        Add_Textture_For_Mesh_Object(tree, "normal_maps/AmericanElmLeaf_Normal.jpg", TexType::Normal);
+    }
+
+    void makeTree(vec3 origin, int depth, float scale)
+    {
+        Matrix4f t;
+        t << scale, 0, 0, origin.x,
+            0, scale, 0, origin.y,
+            0, 0, scale, origin.z,
+            0, 0, 0, 1;
+
+        for (int i = 0; i < depth; i++)
+        {
+            float angle = 3.1415927f * .3f;
+            Matrix4f r;
+
+            makeBranch(origin, scale, t);
+            makeLeaf(origin, scale, t);
+
+            r << cos(angle), 0., sin(angle), 0.,
+                0., 1., 0., 0.,
+                -sin(angle), 0., cos(angle), 0.,
+                0., 0., 0., 1.;
+
+            makeLeaf(origin, scale, t * r);
+            angle = 3.1415927f * -.3f;
+            r << cos(angle), 0., sin(angle), 0.,
+                0., 1., 0., 0.,
+                -sin(angle), 0., cos(angle), 0.,
+                0., 0., 0., 1.;
+
+            makeLeaf(origin, scale, t * r);
+        }
+        //// initialize transform
+    }
+
+    virtual void Initialize_Data()
+    {
+        // Create_Bunny_Scene();           //// TODO: comment out this line for your customized scene
+        Create_Old_Object_Scene(); //// TODO: uncomment this line for your customized scene
 
         ////initialize shader
         OpenGLShaderLibrary::Instance()->Add_Shader_From_File("a5_vert.vert", "a5_frag.frag", "a5_shader");
         ////bind the shader with each mesh object in the object array
-        for (auto& mesh_obj : mesh_object_array) {
+        for (auto &mesh_obj : mesh_object_array)
+        {
             mesh_obj->Add_Shader_Program(OpenGLShaderLibrary::Get_Shader("a5_shader"));
             std::cout << "mesh_obj->name: " << mesh_obj->name << std::endl;
             mesh_obj->Add_Texture("tex_color", OpenGLTextureLibrary::Get_Texture(mesh_obj->name + "_color"));
@@ -138,21 +226,21 @@ public:
         }
     }
 
-    virtual void Initialize() 
+    virtual void Initialize()
     {
         draw_axes = false;
         startTime = clock();
         OpenGLViewer::Initialize();
     }
 
-    void Create_Background(const OpenGLColor color1 = OpenGLColor::Black(), const OpenGLColor color2 = OpenGLColor(.01f, .01f, .2f, 1.f)) 
+    void Create_Background(const OpenGLColor color1 = OpenGLColor::Black(), const OpenGLColor color2 = OpenGLColor(.01f, .01f, .2f, 1.f))
     {
         auto bg = Add_Interactive_Object<OpenGLBackground>();
         bg->Set_Color(color1, color2);
         bg->Initialize();
     }
 
-    OpenGLTriangleMesh *Add_Obj_Mesh_Object(std::string obj_file_name) 
+    OpenGLTriangleMesh *Add_Obj_Mesh_Object(std::string obj_file_name)
     {
         auto mesh_obj = Add_Interactive_Object<OpenGLTriangleMesh>();
         Array<std::shared_ptr<TriangleMesh<3>>> meshes;
@@ -166,7 +254,19 @@ public:
         return mesh_obj;
     }
 
-    void Add_Textture_For_Mesh_Object(OpenGLTriangleMesh *obj ,const std::string &texture_file_name, TexType type) 
+    //// add mesh object by reading an array of vertices and an array of elements
+    OpenGLTriangleMesh *Add_Tri_Mesh_Object(const std::vector<Vector3> &vertices, const std::vector<Vector3i> &elements)
+    {
+        auto obj = Add_Interactive_Object<OpenGLTriangleMesh>();
+        mesh_object_array.push_back(obj);
+        // set up vertices and elements
+        obj->mesh.Vertices() = vertices;
+        obj->mesh.Elements() = elements;
+
+        return obj;
+    }
+
+    void Add_Textture_For_Mesh_Object(OpenGLTriangleMesh *obj, const std::string &texture_file_name, TexType type)
     {
         if (type == TexType::Color)
             OpenGLTextureLibrary::Instance()->Add_Texture_From_File(texture_file_name, obj->name + "_color");
@@ -175,20 +275,20 @@ public:
     }
 
     //// Go to next frame
-    virtual void Toggle_Next_Frame() 
+    virtual void Toggle_Next_Frame()
     {
         for (auto &mesh_obj : mesh_object_array)
             mesh_obj->setTime(GLfloat(clock() - startTime) / CLOCKS_PER_SEC);
         OpenGLViewer::Toggle_Next_Frame();
     }
 
-    virtual void Run() 
+    virtual void Run()
     {
         OpenGLViewer::Run();
     }
 };
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
     ShaderDriver driver;
     driver.Initialize();

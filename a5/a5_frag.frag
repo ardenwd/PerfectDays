@@ -1,5 +1,7 @@
 #version 330 core
 
+#define M_PI 3.1415925585
+#define Epsilon 1e-6
 /*default camera matrices. do not modify.*/
 layout(std140) uniform camera {
     mat4 projection;	/*camera's projection matrix*/
@@ -28,6 +30,46 @@ uniform sampler2D tex_normal;   /* texture sampler for normal vector */
 /*output variables*/
 out vec4 frag_color;
 
+struct Ray 
+{
+    vec3 ori;                       /* ray origin */
+    vec3 dir;                       /* ray direction */
+};
+
+struct Plane 
+{
+    vec3 n;                         /* plane normal */
+    vec3 p;                         /* plane point (a point that is on the plane) */
+    int matId;                      /* plane material ID */
+};
+
+struct Sphere 
+{
+    vec3 ori;                       /* sphere origin */
+    float r;                        /* sphere radius */
+    int matId;                      /* sphere material ID */
+};
+
+struct Triangle
+{
+    vec3 p;
+    vec3 n;
+    vec3 a;
+    vec3 b;
+    vec3 c;
+    float r;
+    int matId;
+    
+};
+
+struct Hit 
+{
+    float t;                        /* ray parameter t for the intersect */
+    vec3 p;                         /* intersect position */
+    vec3 normal;                    /* intersect normal */
+    int matId;                      /* intersect object's material ID */
+};
+
 struct Light 
 {
     vec3 position;          /* light position */
@@ -50,6 +92,15 @@ const Light light3 = Light(/*position*/ vec3(-5, 1, 3),
                             /*Ia*/ vec3(0.1, 0.1, 0.1), 
                             /*Id*/ vec3(0.9, 0.9, 0.9), 
                             /*Is*/ vec3(0.5, 0.5, 0.5));
+
+Sphere sphere1 = Sphere(vec3(0, 0.6, -1), 0.5, 1);
+
+const Hit noHit = Hit(
+                 /* time or distance */ -1.0, 
+                 /* hit position */     vec3(0), 
+                 /* hit normal */       vec3(0), 
+                 /* hit material id*/   -1);
+
 
 /////////////////////////////////////////////////////
 //// Step 1 function: Visualize UV Coordinates with Checkerboard
@@ -291,6 +342,152 @@ vec4 shading_texture_with_normal_mapping()
     return color;
 }
 
+Ray getRay(){
+
+        vec2 uv = vtx_uv;
+    //camera.origin is first 3 coord of camera.position
+    //we dont know what lower left corner is, using value as vec3(-2.5, -1.5, -1)
+    //using horiz as vec3(5, 0, 0),
+    //using vertical as vec3(0, 3, -3)
+    return Ray( 
+        
+        vec3(0, 15, 50),  vtx_model_position - vec3(0, 15, 50));
+        
+        // vec3(-2.5, -1.5, -1)+ uv.x * vec3(5, 0, 0) + uv.y * vec3(0, 3, -3)- vec3(0, 15, 50));
+    // return Ray(camera.position.xyz, camera.position.xyz - vtx_model_position);
+
+}
+Hit hitSphere(const Ray r, const Sphere s) 
+{
+    Hit hit = noHit;
+	
+    /* your implementation starts */
+
+    //calculate ABC
+    
+    vec3 o = r.ori;
+    vec3 c = s.ori;
+    vec3 d = r.dir;
+    float A = dot(d,d);
+    float B = 2*(dot(o,d) - dot(c,d));
+    float C = (dot(o,o)+ dot(c,c) - 2 *( dot(o,c)) - dot(s.r,s.r));
+
+     float change = (B * B) - (4*A*C);
+
+    if(change<=0.0){
+        return noHit;
+    }
+    
+    float t = (((-1 * B) - pow(change,0.5f))/(2 * A));
+
+    //only continue if t > 0
+    if(t <= 0.0) 
+       return noHit;
+
+    // //calculate the intersection point and make a hit object
+    vec3 hitP = r.ori + t * r.dir;
+    vec3 normal = normalize(hitP - c);
+    hit = Hit(t, hitP, normal, s.matId);
+	/* your implementation ends */
+    
+	return hit;
+}
+
+Hit hitTriangle(const Ray r, const Triangle tri) 
+{
+    Hit hit = noHit;
+
+    float t = dot(tri.p - r.ori, tri.n) / dot(r.dir, tri.n);
+
+    //only continue if t > 0
+    if(t <= 0.0) 
+       return noHit;
+
+    //calculate the intersection point and make a hit object
+    vec3 hitP = r.ori + t * r.dir;
+    vec3 normal = tri.n;
+    hit = Hit(t, hitP, normal, tri.matId);
+
+    //check if inside tri
+
+    vec3 a = tri.a;
+    vec3 b = tri.b;
+    vec3 c = tri.c;
+
+//   // Move the triangle so that the point becomes the 
+//   // triangles origin
+    a -= hitP;
+    b -= hitP;
+    c -= hitP;
+
+  // The point should be moved too, so they are both
+  // relative, but because we don't use p in the
+  // equation anymore, we don't need it!
+  // p -= p;
+
+  // Compute the normal vectors for triangles:
+  // u = normal of PBC
+  // v = normal of PCA
+  // w = normal of PAB
+
+  vec3 u = cross(b, c);
+  vec3 v = cross(c, a);
+  vec3 w = cross(a, b);
+
+  // Test to see if the normals are facing 
+  // the same direction, return false if not
+  if (dot(u, v) < 0.0) {
+      return noHit;
+  }
+  if (dot(u, w) < 0.0) {
+      return noHit;
+  }
+	return hit;
+}
+
+
+Hit findHit(Ray r) 
+{
+    Hit h = noHit;
+	
+	// for(int i = 0; i < spheres.length(); i++) {
+        Hit tempH = hitSphere(r, sphere1);
+        if(tempH.t > Epsilon && (h.t < 0. || h.t > tempH.t))
+            h = tempH;
+    // }
+	
+    // for(int i = 0; i < planes.length(); i++) {
+    //     Hit tempH = hitPlane(r, planes[i]);
+    //     if(tempH.t > Epsilon && (h.t < 0. || h.t > tempH.t))
+    //         h = tempH;
+    // }
+
+    return h;
+}
+
+bool isShadowed(Light light, Hit h) 
+{
+    bool shadowed = false;                          /* returned boolean to indicate if there is shadow or not */
+	vec3 intersect = h.p;                           /* hit intersect */
+	vec3 toLight = light.position-intersect;        /* vector pointing from the shadow ray origin to the light */
+	float t_max = length(toLight);                  /* length of toLight */
+	vec3 dir = normalize(toLight);                  /* direction of toLight */
+    /* your implementation starts */
+
+
+    Ray r = Ray(intersect,dir);
+    Hit t = findHit(r);
+
+    if(t.t>0 && t.t< t_max){
+        shadowed = true;
+    }
+    
+	/* your implementation ends */
+    
+	return shadowed;
+}
+
+
 void main() 
 {
     //// Step 1: Visualize UV Coordinates with Checkerboard
@@ -312,4 +509,10 @@ void main()
     //// (1) calc_bitangent(), (2) calc_TBN_matrix(), (3) read_normal_texture(), (4) calc_perturbed_normal(), and (5) shading_texture_with_normal_mapping()
     //// Uncomment the following line to call the function (you might also need to comment out previous lines that assign frag_color)
     frag_color = shading_texture_with_normal_mapping();
+
+    Hit h = findHit(getRay());
+
+            if(isShadowed(light1, h)) {
+            frag_color = vec4(1.0);
+            }
 }
